@@ -267,12 +267,33 @@ curl.exe -X POST http://127.0.0.1:8000/api/v1/incidents -H "Content-Type: applic
 - **Cloud Deployment Blueprint (AWS ECS Fargate):** [docs/DEPLOYMENT_AWS_ECS.md](docs/DEPLOYMENT_AWS_ECS.md)
 - **Security Threat Model & Load Report:** [docs/SECURITY_THREAT_MODEL.md](docs/SECURITY_THREAT_MODEL.md), [docs/LOAD_TEST_REPORT.md](docs/LOAD_TEST_REPORT.md)
 
+## Screenshots
+
+Captured from the running `docker compose --profile demo up -d` stack following [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md):
+
+### Operations Overview
+![Operations Overview](docs/screenshots/01-overview.png)
+
+### Settings & Integrations (Alertmanager Simulator, Mock GitHub, Mock Jira)
+![Settings and Integrations](docs/screenshots/02-settings-integrations.png)
+
+### Ingestion & Events (Receipts, Correlation IDs, Replay)
+![Ingestion and Events](docs/screenshots/03-events-ingestion.png)
+
+### Evidence & Hybrid Knowledge Base Search
+![Evidence and Knowledge Base](docs/screenshots/04-evidence-kb.png)
+
+### Incident Detail & Read-Only AI Investigation Copilot (`[EV-*]` Citations)
+![Incident AI Investigation](docs/screenshots/05-incident-ai-investigation.png)
+
+### External Action Approvals (Human Gate & Payload Preview)
+![External Action Approvals](docs/screenshots/06-actions-approval-gate.png)
+
 ## Known Limitations
 
 - **Single-process in-memory rate limiter:** `RateLimiter` is in-memory per API process; multi-replica deployments should swap in a Redis-backed limiter.
 - **Knowledge Base file formats:** Supports UTF-8 `.md` and `.txt` only (PDF deferred); local upload checks do not bundle an external AV daemon (e.g., ClamAV).
 - **OTel SQLAlchemy span wrapping:** `opentelemetry-instrumentation-sqlalchemy 0.66b2` skips automatic wrapping on `sqlalchemy 2.1.9` (`< 2.1.0` constraint); HTTP, Celery worker, connector, and AI spans are active.
-- **Screenshots:** No static screenshot PNGs are committed; live UI flows are verified via Next.js build, Vitest, and Playwright smoke tests (`frontend/e2e/smoke.spec.ts`).
 | `/health/ready` returns 503 | Database unreachable: `docker compose ps db`, `docker compose logs db`, `docker compose exec api python -m app.db_check`. |
 | `migrate` exited non-zero / api never starts | `docker compose logs migrate`. |
 | `table incidents already exists` (SQLite) | Pre-Phase-1 database: `alembic stamp 0001` (see §3). |

@@ -9,7 +9,7 @@
 docker compose --profile demo up --build -d
 docker compose exec api python -m app.bootstrap
 ```
-Open `http://127.0.0.1:3000/login` and sign in as `admin@acme.local` (or `owner@acme.local`).
+Open `http://localhost:3000/login` and sign in as `admin@acme.local` (or `owner@acme.local`).
 
 ---
 
