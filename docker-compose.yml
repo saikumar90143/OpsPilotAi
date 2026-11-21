@@ -1,31 +1,160 @@
+# OpsPilot AI - local development stack.
+#
+#   Copy-Item .env.example .env     # then set POSTGRES_PASSWORD
+#   docker compose up --build -d    # db -> migrate -> api
+#
+# Credentials come only from the git-ignored root .env file.
+# PostgreSQL is NOT published to the host; only the API is, on 127.0.0.1.
+# Data persists in the named volume `opspilot_postgres_data`.
+
+name: opspilot-ai
+
+x-postgres-credentials: &postgres-credentials
+  POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env (see .env.example)}
+  POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env (see .env.example)}
+
+x-app-environment: &app-environment
+  APP_ENV: ${APP_ENV:-development}
+  DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+  REDIS_URL: redis://redis:6379/0
+  JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-insecure-secret-change-before-production-32b}
+  INTEGRATION_ENCRYPTION_KEY: ${INTEGRATION_ENCRYPTION_KEY:-}
+  LOG_LEVEL: ${LOG_LEVEL:-INFO}
+  LOG_FORMAT: json
+  FRONTEND_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:3000}
+
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: opspilot
-      POSTGRES_USER: opspilot
-      POSTGRES_PASSWORD: local_dev_password
-    ports:
-      - "5432:5432"
+      <<: *postgres-credentials
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env (see .env.example)}
     volumes:
       - opspilot_postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U opspilot -d opspilot"]
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 10s
+    restart: unless-stopped
 
-  api:
+  # One-shot job: apply Alembic migrations, then exit 0.
+  migrate:
     build: ./backend
-    environment:
-      APP_ENV: development
-      DATABASE_URL: postgresql+psycopg://opspilot:local_dev_password@db:5432/opspilot
-      FRONTEND_ORIGIN: http://localhost:3000
-    ports:
-      - "8000:8000"
+    command: ["alembic", "upgrade", "head"]
+    environment: *app-environment
     depends_on:
       db:
         condition: service_healthy
+    restart: "no"
+
+  api:
+    build: ./backend
+    environment: *app-environment
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  worker:
+    build: ./backend
+    command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=info"]
+    environment: *app-environment
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  # Opt-in, ephemeral database for PostgreSQL integration tests (data in tmpfs).
+  #   docker compose --profile test up -d db-test
+  db-test:
+    image: postgres:16-alpine
+    profiles: ["test"]
+    environment:
+      <<: *postgres-credentials
+      POSTGRES_DB: opspilot_test
+    ports:
+      - "127.0.0.1:${TEST_POSTGRES_PORT:-55432}:5432"
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d opspilot_test"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  # Opt-in local observability stack: docker compose --profile observability up -d
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["observability"]
+    volumes:
+      - ./observability/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./observability/prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+    ports:
+      - "127.0.0.1:9090:9090"
+    depends_on:
+      - api
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["observability"]
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ./observability/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "127.0.0.1:3001:3000"
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+  # Opt-in Next.js dashboard for full-stack local demo:
+  #   docker compose --profile demo up --build -d
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_BASE_URL: http://127.0.0.1:8000
+    profiles: ["demo"]
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   opspilot_postgres_data:

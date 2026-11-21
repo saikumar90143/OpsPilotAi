@@ -1,0 +1,16 @@
+[
+  {
+    "title": "[SYNTHETIC] Checkout API — Postgres Connection Pool Exhaustion Runbook",
+    "filename": "checkout-db-pool-runbook.md",
+    "source_uri": "kb://synthetic/runbooks/checkout-db-pool-runbook.md",
+    "mime_type": "text/markdown",
+    "content": "# Checkout API — Postgres Connection Pool Exhaustion\n\n> **Synthetic Demo Document:** This runbook is synthetic fixture data for OpsPilot AI evaluation.\n\n## Symptoms\n- `POOL_EXHAUSTED` errors in `checkout-api` logs.\n- Elevated p99 latency (> 2500ms) on `POST /v1/checkout`.\n- `payments-worker` downstream 504 timeouts sharing the same `trace_id`.\n\n## Triage Steps\n1. Query `application_logs` for `service=checkout-api` and `severity=ERROR` over the last 60 minutes.\n2. Correlate recent commits or deployments on `checkout-api` (look for long-running transactions or missing `pool_timeout`).\n3. Inspect `pg_stat_activity` for idle-in-transaction sessions.\n\n## Safe Mitigation\n- Roll back the offending release or temporarily increase `pool_max_overflow` via approved change control.\n"
+  },
+  {
+    "title": "[SYNTHETIC] Payments Worker — Gateway Timeout & Circuit Breaker Guide",
+    "filename": "payments-gateway-circuit-breaker.md",
+    "source_uri": "kb://synthetic/runbooks/payments-gateway-circuit-breaker.md",
+    "mime_type": "text/markdown",
+    "content": "# Payments Worker — Gateway Timeout & Circuit Breaker\n\n> **Synthetic Demo Document:** This runbook is synthetic fixture data for OpsPilot AI evaluation.\n\n## Overview\nWhen `payments-worker` records repeated `504` responses from the upstream payment gateway, the worker circuit breaker opens for 60 seconds.\n\n## Verification\n- Check `application_logs` filtered by `service=payments-worker` and `correlation_id`.\n- Confirm whether `checkout-api` initiated retries without an idempotency key.\n\n## Escalation\nPage the Payments On-Call rotation if error rate exceeds 5% for 10 consecutive minutes.\n"
+  }
+]

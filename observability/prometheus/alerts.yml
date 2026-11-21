@@ -1,0 +1,40 @@
+groups:
+  - name: opspilot_alerts
+    rules:
+      - alert: OpsPilotQueueBacklogHigh
+        expr: sum(opspilot_queue_depth{status=~"pending|retrying"}) > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OpsPilot inbound event queue backlog exceeds 50"
+          runbook: "docs/runbooks/queue-backlog-and-dead-letter.md"
+
+      - alert: OpsPilotDeadLetterGrowth
+        expr: increase(opspilot_queue_dead_letters_total[15m]) > 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OpsPilot dead-letter events detected in last 15m"
+          runbook: "docs/runbooks/queue-backlog-and-dead-letter.md"
+
+      - alert: OpsPilotHighAPIErrorRate
+        expr: >
+          sum(rate(opspilot_http_errors_total{status_class="5xx"}[5m]))
+          / clamp_min(sum(rate(opspilot_http_requests_total[5m])), 1) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "OpsPilot API 5xx error rate > 5%"
+          runbook: "docs/runbooks/api-error-spike-and-db-pool.md"
+
+      - alert: OpsPilotAIInvestigationFailureRate
+        expr: rate(opspilot_ai_investigation_duration_seconds_count{status="failed"}[15m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "OpsPilot AI investigation failures elevated"
+          runbook: "docs/runbooks/connector-rate-limit-and-ai-timeout.md"

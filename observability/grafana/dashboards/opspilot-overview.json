@@ -1,0 +1,42 @@
+{
+  "title": "OpsPilot AI — Operations & Copilot Overview",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "panels": [
+    {
+      "id": 1,
+      "type": "timeseries",
+      "title": "API Request Rate (req/s)",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "targets": [{ "expr": "sum by (status_class) (rate(opspilot_http_requests_total[5m]))" }]
+    },
+    {
+      "id": 2,
+      "type": "timeseries",
+      "title": "API p95 Latency (s)",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (le) (rate(opspilot_http_request_duration_seconds_bucket[5m])))" }]
+    },
+    {
+      "id": 3,
+      "type": "timeseries",
+      "title": "Queue Retries & Dead Letters",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "targets": [
+        { "expr": "sum(increase(opspilot_queue_retries_total[5m]))" },
+        { "expr": "sum(increase(opspilot_queue_dead_letters_total[5m]))" }
+      ]
+    },
+    {
+      "id": 4,
+      "type": "timeseries",
+      "title": "AI Investigation Duration & Tokens",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "targets": [
+        { "expr": "sum by (status) (rate(opspilot_ai_investigation_duration_seconds_count[5m]))" },
+        { "expr": "sum by (direction) (rate(opspilot_ai_model_tokens_total[5m]))" }
+      ]
+    }
+  ]
+}

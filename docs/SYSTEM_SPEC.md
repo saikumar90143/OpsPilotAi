@@ -105,23 +105,27 @@ and presents it with explicit confidence labeling. OpsPilot AI fills this gap.
 | OPS-CORE-001 | Create an incident with title, description, service, severity, and source | Phase 1 |
 | OPS-CORE-002 | List incidents, newest first, with pagination (limit/offset) | Phase 1 |
 | OPS-CORE-003 | Retrieve a single incident by ID | Phase 1 |
-| OPS-CORE-004 | Update incident status through the lifecycle: open → investigating → resolved → closed | Phase 1 |
+| OPS-CORE-004 | Update incident status through the enforced lifecycle: `open` → `acknowledged` / `investigating` → `resolved` → `closed` (and `reopen`) | Phase 1 / 3 |
 | OPS-CORE-005 | Soft-delete / archive incidents (no hard deletes of incident records) | Phase 2 |
 | OPS-CORE-006 | Incidents are scoped to an organization (tenant isolation) | Phase 2 |
-| OPS-CORE-007 | Incident history/timeline of status changes and actions | Phase 6 |
+| OPS-CORE-007 | Incident timeline events, comments, evidence references, affected services, tags, and optimistic concurrency (`version`) | Phase 3 |
+
+> **Severity vs. Priority:** `severity` (`critical`, `high`, `medium`, `low`) measures technical
+> and business impact of the incident. Priority (triage/SLA scheduling urgency, e.g. P1–P4) is a
+> separate scheduling concept deferred until SLA/routing rules are added.
 
 ### OPS-SEC — Security and Access Control
 
 | ID | Requirement | Phase |
 |----|-------------|-------|
 | OPS-SEC-001 | All endpoints except `/health/*` require authentication | Phase 2 |
-| OPS-SEC-002 | JWT-based authentication (access + refresh tokens) | Phase 2 |
-| OPS-SEC-003 | Passwords hashed with bcrypt; never stored in plaintext | Phase 2 |
-| OPS-SEC-004 | Role-based access control: `admin`, `responder`, `viewer` | Phase 2 |
+| OPS-SEC-002 | JWT access tokens + rotating refresh tokens in HttpOnly cookies with CSRF | Phase 2 |
+| OPS-SEC-003 | Passwords hashed with Argon2id; never stored in plaintext | Phase 2 |
+| OPS-SEC-004 | Role-based access control: `OWNER`, `ADMIN`, `ENGINEER`, `VIEWER` | Phase 2 |
 | OPS-SEC-005 | Every DB query on tenant-owned data filtered by `org_id` | Phase 2 |
 | OPS-SEC-006 | IDOR prevention: user cannot access another org's incidents | Phase 2 |
 | OPS-SEC-007 | All external write actions require a human approval gate | Phase 6 |
-| OPS-SEC-008 | Immutable append-only audit log for all significant actions | Phase 6 |
+| OPS-SEC-008 | Immutable append-only audit log for auth, RBAC, and domain actions | Phase 2 / 6 |
 | OPS-SEC-009 | Secrets never logged or returned in API responses | Phase 1 |
 | OPS-SEC-010 | Rate limiting on auth endpoints | Phase 2 |
 

@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# Testing
+pytest>=8.0,<10.0
+pytest-cov>=5.0,<8.0
+# Starlette >=1.10 TestClient imports httpx2 first and warns when falling back to httpx.
+httpx2>=2.16,<3.0
+
+# Lint, format, type checking
+ruff>=0.5,<1.0
+mypy>=1.11,<2.0
