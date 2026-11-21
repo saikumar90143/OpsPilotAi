@@ -1,0 +1,15 @@
+title = "OpsPilot AI Gitleaks Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allow synthetic test fixtures and explicit dev-only placeholder constants."
+paths = [
+  '''backend/tests/.*''',
+  '''backend/app/fixtures/.*''',
+]
+regexes = [
+  '''dev-only-insecure-secret-change-before-production-32b''',
+  '''eyJhbGciOiJIUzI1NiJ9\.aaa\.bbb''',
+]
