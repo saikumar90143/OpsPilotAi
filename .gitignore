@@ -59,6 +59,9 @@ dist/
 build/
 frontend/.env
 frontend/.env.local
+frontend/playwright/.auth/
+frontend/playwright-report/
+frontend/test-results/
 
 # ─── Docker ───────────────────────────────────────────────────────────────────
 # (docker-compose.override.yml is intentionally not ignored — commit it if used)

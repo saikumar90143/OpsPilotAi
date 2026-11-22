@@ -148,8 +148,8 @@
 | OPS-DEPLOY-004 | Ruff + mypy pass | 1 | `pyproject.toml` | CI step | ✅ |
 | OPS-DEPLOY-005 | Reproducible local setup (Windows) | 1 | `README.md` | Manual | ✅ |
 | OPS-DEPLOY-006 | Redis + Celery in Docker Compose | 4 | `docker-compose.yml`, `app/worker.py` | Compose `redis` + `worker` | ✅ |
-| OPS-DEPLOY-007 | GitHub Actions CI | 9 | — | — | ⬜ |
-| OPS-DEPLOY-008 | Playwright E2E tests | 9 | — | — | ⬜ |
+| OPS-DEPLOY-007 | GitHub Actions CI | 9 | `.github/workflows/ci.yml` | CI | ✅ |
+| OPS-DEPLOY-008 | Playwright E2E tests | 9 / 12 | `frontend/playwright.config.ts`, `frontend/e2e/auth.setup.ts`, `frontend/e2e/smoke.spec.ts` | `npx playwright test --reporter=list` | ✅ |
 
 ---
 
@@ -178,3 +178,31 @@ Recorded 2026-11-21 after final edits (`.\scripts\check.ps1` + `pytest -v --cov=
 | TD-005 | No authentication on any endpoint | Phase 0 | Phase 2 (resolved) |
 | TD-006 | No tenant isolation | Phase 0 | Phase 2 (resolved) |
 | TD-007 | Coverage threshold not yet met for all modules | Phase 1 | Phase 2+ |
+
+---
+
+## Playwright E2E Verification (2026-11-22)
+
+Verified against the live `docker compose --profile demo` stack (`postgres:16-alpine`, `redis:7-alpine`, `api`, `worker`, `frontend` at `http://localhost:3000`, zero mocked backend services):
+
+- **Database & readiness checks**:
+  - `docker compose exec -T api python -m app.db_check` → `Status: OK`, `Dialect: postgresql 16.14`, `Revision: 0008`
+  - `curl.exe -s http://127.0.0.1:8000/health/ready` → `{"status":"ready","checks":{"database":"ok"}}`
+- **Frontend static checks & unit tests**:
+  - `npm run typecheck` (`tsc --noEmit`) → **PASS** (exit 0)
+  - `npm run lint` (`eslint .`) → **PASS** (exit 0)
+  - `npm run test` (`vitest run`) → **PASS** (2 test files, 4 tests passed)
+- **Playwright E2E (`npx playwright test --reporter=list`)** with `E2E_DEMO_EMAIL`, `E2E_DEMO_PASSWORD`, and `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`:
+  - `[setup] › e2e/auth.setup.ts` — `authenticate demo admin once` → **PASS** (`2.5s`, reusable `storageState`)
+  - `[desktop] › e2e/smoke.spec.ts` (1280×800) — `overview, create deterministic incident, acknowledge, and run read-only AI investigation` → **PASS** (`6.8s`)
+  - `[desktop] › e2e/smoke.spec.ts` (1280×800) — `navigate and verify live UI across events, evidence & KB, actions, and settings` → **PASS** (`4.2s`)
+  - `[mobile] › e2e/smoke.spec.ts` (390×844) — `overview, create deterministic incident, acknowledge, and run read-only AI investigation` → **PASS** (`7.3s`)
+  - `[mobile] › e2e/smoke.spec.ts` (390×844) — `navigate and verify live UI across events, evidence & KB, actions, and settings` → **PASS** (`4.6s`)
+  - **Total:** **5 passed, 0 failed** (`19.6s`)
+- **Backend PostgreSQL & Unit/API Verification (2026-11-22)**:
+  - `pytest -m "not postgres" -q` → **108 passed, 9 deselected** (exit 0)
+  - `pytest -m postgres -v` against `db-test` (`postgres:16-alpine` on `127.0.0.1:55432`) → **9 passed, 108 deselected** (exit 0)
+  - `ruff check .`, `ruff format --check .` (`118` files), `mypy app --ignore-missing-imports` (`86` source files) → **PASS** (exit 0)
+- **Known Notes**:
+  - Each E2E run creates two deterministic `E2E Smoke <project> <timestamp>` incidents in the local demo DB so `Acknowledge` is always exercised on a fresh `open` incident without mutating seeded demo incidents.
+  - On Windows where `%LOCALAPPDATA%\ms-playwright` is not installed, `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can point to a local Chromium/Chrome binary; default Playwright browser resolution is preserved when unset.
